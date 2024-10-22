@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/UserSchema.js';
+import { sendMessage } from '../kafka/producer.js'; // Ensure this path is correct
 
 // Register function
 export const register = async (request, response) => {
@@ -10,7 +11,7 @@ export const register = async (request, response) => {
         phone,
         password,
         gender,
-        role // Include role in the destructuring
+        role
     } = request.body;
 
     try {
@@ -25,11 +26,15 @@ export const register = async (request, response) => {
             phone,
             password: hashedPassword,
             gender,
-            role // Save role to the user instance
+            role
         });
 
         // Save the new user in the database
         const savedUser = await newUser.save();
+
+        // Send message to Kafka
+        const message = JSON.stringify({ userId: savedUser._id, action: 'registered' });
+        sendMessage(message); // Call the function to send the message to Kafka
 
         // Return the saved user data with a success response
         return response.status(200).send(savedUser);
